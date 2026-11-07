@@ -1,5 +1,6 @@
+import {parseParameter,parameterError} from './diagram-parameters.js';
 import {escapeHTML as esc} from './core.js';
-const round=n=>Number.isFinite(n)?String(Number(n.toFixed(3))):'未定义';
+const round=n=>Number.isFinite(n)?String(n!==0&&(Math.abs(n)<.001||Math.abs(n)>=1e7)?n.toExponential(3):Number(n.toFixed(3))):'未定义';
 const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
 export const choose=(n,r)=>{if(r<0||r>n)return 0;let v=1;for(let k=1;k<=r;k++)v=v*(n-k+1)/k;return Math.round(v);};
 export function conicPoint(type,t,a,b){return type==='ellipse'?{x:a*Math.cos(t),y:b*Math.sin(t)}:type==='hyperbola'?{x:a*Math.cosh(t),y:b*Math.sinh(t)}:{x:t*t/(2*a),y:t};}
@@ -32,10 +33,15 @@ export const diagramKinds={
  derivative:{title:'割线逼近切线',controls:[control('p','切点横坐标 x₀',-1.5,1.5,.05,1),control('q','增量 h（非零）',.02,1,.02,.5)],guide:'拖动黄色点缩小 h，观察割线斜率趋近切线斜率。此图演示 f(x)=x²。'},
  limit:{title:'趋近一点，不等于代入该点',controls:[control('p','到 1 的距离 δ',.02,.8,.02,.5)],guide:'拖动黄色点趋近空心点，左右函数值都趋近 2，但原式在 x=1 无定义。'}
 };
-export function diagramHTML(section){const config=section.experiment||diagramKinds[section.visual];return `<section class="concept-visual" aria-label="${esc(config.title)}"><div class="section-heading"><div><span class="eyebrow">02 · SEE IT CHANGE</span><h2>${config.title}</h2></div><span class="tag">可拖动</span></div><p>${section.observe}</p><div class="concept-visual-layout"><div><svg class="concept-svg" viewBox="0 0 600 400" role="group" aria-label="${esc(config.title)}交互图形"></svg><p class="diagram-guide">${config.guide}</p></div><div class="diagram-controls">${config.controls.map(c=>`<label class="range-field">${c.label}<output data-output="${c.key}">${c.value}</output><input type="range" data-param="${c.key}" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.value}" aria-label="${c.label}"></label>`).join('')}${section.visual==='sequence'?'<div class="diagram-switch"><button data-sequence="arithmetic" aria-pressed="true">等差</button><button data-sequence="geometric" aria-pressed="false">等比</button></div>':''}${section.visual==='conic'?'<div class="diagram-switch"><button data-conic="circle">圆</button><button data-conic="ellipse">椭圆</button><button data-conic="hyperbola">双曲线</button><button data-conic="parabola">抛物线</button></div>':''}<div class="diagram-reading" aria-live="polite"></div><button class="secondary" data-diagram-reset>恢复初始图像 ↺</button></div></div><p class="fineprint">图像与读数辅助观察，不能代替证明。控制点超出窗口时，可用滑条调回。数值显示为近似值（最多三位小数）；精确答案以定义、公式与推导为准。</p></section>`;}
+const editable=section=>/^4\.[1-8]$/.test(section.id);
+function parameterForm(config){
+ return `<form class="diagram-parameter-form"><p>直接填数（支持 1/2 等分数），再点「应用参数」。滑条用于快速调整。</p>${config.controls.map(c=>`<label>${c.label.replace('（选定整数）','').replace('（正半轴）','')}<input type="text" name="${c.key}" inputmode="text" autocomplete="off" spellcheck="false" value="${c.value}"></label>`).join('')}<button class="primary" type="submit">应用参数</button><p class="diagram-parameter-error" role="alert" hidden></p></form>`;
+}
+export function diagramHTML(section){const config=section.experiment||diagramKinds[section.visual];return `<section class="concept-visual" aria-label="${esc(config.title)}"><div class="section-heading"><div><span class="eyebrow">02 · SEE IT CHANGE</span><h2>${config.title}</h2></div><span class="tag">可拖动</span></div><p>${section.observe}</p><div class="concept-visual-layout"><div><svg class="concept-svg" viewBox="0 0 600 400" role="group" aria-label="${esc(config.title)}交互图形"></svg><p class="diagram-guide">${config.guide}</p></div><div class="diagram-controls">${editable(section)?parameterForm(config):''}${config.controls.map(c=>`<label class="range-field">${c.label}<output data-output="${c.key}">${c.value}</output><input type="range" data-param="${c.key}" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.value}" aria-label="${c.label}"></label>`).join('')}${section.visual==='sequence'?'<div class="diagram-switch"><button data-sequence="arithmetic" aria-pressed="true">等差</button><button data-sequence="geometric" aria-pressed="false">等比</button></div>':''}${section.visual==='conic'?'<div class="diagram-switch"><button data-conic="circle">圆</button><button data-conic="ellipse">椭圆</button><button data-conic="hyperbola">双曲线</button><button data-conic="parabola">抛物线</button></div>':''}<div class="diagram-reading" aria-live="polite"></div><button class="secondary" data-diagram-reset>恢复初始图像 ↺</button></div></div><p class="fineprint">图像与读数辅助观察，不能代替证明。控制点超出窗口时，可用滑条调回。数值显示为近似值（最多三位小数）；精确答案以定义、公式与推导为准。</p></section>`;}
 export function mountDiagram(root,section){
  const kind=section.visual,config=section.experiment||diagramKinds[kind],svg=root.querySelector('svg'),read=root.querySelector('.diagram-reading');
  const s=Object.fromEntries(config.controls.map(c=>[c.key,c.value]));const initialSequence=['12.4','12.7','12.8'].includes(section.id)?'geometric':'arithmetic';s.sequence=initialSequence;const initialConic=section.id==='15.2'?'circle':section.id==='15.4'?'hyperbola':section.id==='15.5'?'parabola':'ellipse';s.conic=initialConic;
+ const form=root.querySelector('.diagram-parameter-form'),error=form?.querySelector('[role=alert]');
  let drag=null,dragStart=null;
  function draw(){
   if(kind==='counting'){s.q=Math.min(s.p,s.q);root.querySelector('[data-param="q"]').max=s.p;}
@@ -43,7 +49,8 @@ export function mountDiagram(root,section){
   const {p,q,u,v}=s,U=['unitcircle','complex'].includes(kind)?70:50,X=x=>300+U*x,Y=y=>200-U*y;
   const line=(x1,y1,x2,y2,color='green',dash=false)=>`<line x1="${X(x1)}" y1="${Y(y1)}" x2="${X(x2)}" y2="${Y(y2)}" class="d-${color}" ${dash?'stroke-dasharray="6 5"':''}/>`;
   const txt=(x,y,t,color='ink')=>`<text x="${X(x)}" y="${Y(y)}" class="d-text d-text-${color}">${esc(t)}</text>`;
-  const dot=(x,y,type='point',color='yellow')=>`<g tabindex="0" role="button" aria-label="可拖动控制点 ${type}，也可用方向键调节" data-drag="${type}"><circle cx="${X(x)}" cy="${Y(y)}" r="24" fill="transparent"/><circle cx="${X(x)}" cy="${Y(y)}" r="8" class="d-fill-${color}" stroke="white" stroke-width="3"/></g>`;
+  let outside=false;
+  const dot=(x,y,type='point',color='yellow')=>{if(form&&(!Number.isFinite(x)||!Number.isFinite(y)||X(x)<20||X(x)>580||Y(y)<20||Y(y)>380)){outside=true;return '';}return `<g tabindex="0" role="button" aria-label="可拖动控制点 ${type}，也可用方向键调节" data-drag="${type}"><circle cx="${X(x)}" cy="${Y(y)}" r="24" fill="transparent"/><circle cx="${X(x)}" cy="${Y(y)}" r="8" class="d-fill-${color}" stroke="white" stroke-width="3"/></g>`;};
   const path=(fn,min=-5.5,max=5.5,color='green')=>{let d='',last=null;for(let i=0;i<=550;i++){const x=min+(max-min)*i/550,y=fn(x);if(!Number.isFinite(y)||Math.abs(y)>12){last=null;continue;}const command=last!==null&&Math.abs(y-last)<2?'L':'M';d+=`${command}${X(x).toFixed(2)} ${Y(y).toFixed(2)} `;last=y;}return `<path d="${d}" class="d-${color}"/>`;};
   const poly=(pts,color='green')=>`<polygon points="${pts.map(([x,y])=>`${X(x)},${Y(y)}`).join(' ')}" class="d-fill-${color}" fill-opacity=".15" stroke="currentColor"/>`;
   const circle=(x,y,r,color='green')=>`<circle cx="${X(x)}" cy="${Y(y)}" r="${r*U}" class="d-${color}"/>`;
@@ -63,11 +70,13 @@ export function mountDiagram(root,section){
   } else if(kind==='function'){
    g=path(x=>(x-p)**2+q)+line(p,-3.5,p,3.5,'red',true)+dot(p,q,'vertex')+dot(u,(u-p)**2+q,'probe','red');out=`y=(x−${round(p)})²+${round(q)}。顶点 (${round(p)},${round(q)})，全域最小值 ${round(q)}。f(${round(u)})=${round((u-p)**2+q)}。限制定义域后须重新比较边界。`;
   } else if(kind==='power'){
-   g=path(x=>p===0&&x===0?NaN:Math.pow(x,p))+dot(q,q**p)+(p===0?circle(0,1,.08,'red'):'');out=`y=x^${p}，f(${round(q)})≈${round(q**p)}。这里只切换整数幂；负整数幂必须 x≠0。p=0 时本实验采用 x≠0（不定义 0⁰）。`;
+   const f=x=>(p<=0&&x===0)||(form&&!Number.isInteger(p)&&x<0)?NaN:x**p,y=f(q);
+   g=path(f)+(Number.isNaN(y)?'':dot(q,y))+(p===0?circle(0,1,.08,'red'):'');
+   out=`y=x^${p}，f(${round(q)})${Number.isNaN(y)?'在此模型中无定义':Number.isFinite(y)?'≈'+round(y):'超出数值范围'}。${Number.isInteger(p)?'负整数幂和零次幂排除 x=0。':p>0?'非整数幂在此实验只画 x≥0 的实数分支。':'负的非整数幂在此实验只画 x>0 的实数分支。'}`;
   } else if(kind==='exponential'){
    g=path(x=>p**x)+dot(q,p**q);out=`y=${round(p)}^x，f(${round(q)})≈${round(p**q)}。${p===1?'底数为 1 得到常函数，不属于通常定义的指数函数。':p>1?'底数大于 1，严格递增。':'底数在 (0,1) 内，严格递减。'}所有图像过 (0,1)。`;
   } else if(kind==='logarithm'){
-   const valid=Math.abs(p-1)>1e-8,ly=valid?Math.log(q)/Math.log(p):NaN;
+   const valid=p>0&&p!==1,ly=valid?Math.log(q)/Math.log(p):NaN;
    g=line(-4,-4,4,4,'axis',true)+(valid?path(x=>x>0?Math.log(x)/Math.log(p):NaN)+path(x=>p**x,-4,4,'yellow')+dot(q,ly):'');out=valid?`log_${round(p)}(${round(q)})≈${round(ly)}。交换坐标后 (${round(ly)},${round(q)}) 在指数图像上。绿色对数图像仅在 x>0 存在。`:'a=1 不能作为对数底数：1 的任何次方都是 1，无法建立唯一的反函数。';
   } else if(kind==='unitcircle'){
    const t=p*Math.PI/180,x=Math.cos(t),y=Math.sin(t);g=circle(0,0,1)+line(0,0,x,y)+line(x,0,x,y,'red')+line(0,0,x,0,'yellow')+dot(x,y)+txt(1.15,.2,'(1,0)')+txt(-.3,1.25,'(0,1)');out=`θ=${p}°≈${round(t)} 弧度；cos θ≈${round(x)}，sin θ≈${round(y)}；tan θ${Math.abs(x)<1e-8?'未定义':'≈'+round(y/x)}。sin²θ+cos²θ=1。`;
@@ -115,12 +124,25 @@ export function mountDiagram(root,section){
    g=path(x=>x+1)+`<circle cx="${X(1)}" cy="${Y(2)}" r="7" class="d-red d-open"/>`+dot(1+p,2+p)+circle(1-p,2-p,.07,'green');out=`f(x)=(x²−1)/(x−1)=x+1（x≠1）。在 x=1±${round(p)} 时，f(x)=2±${round(p)}。两侧极限均为 2，原式的 f(1) 却没有定义。空心点不补上。`;
   }
   svg.innerHTML=`<defs><clipPath id="concept-plot"><rect x="20" y="20" width="560" height="360"/></clipPath></defs><g clip-path="url(#concept-plot)">${axes}${g}</g>`;
-  read.textContent=out;
+  read.textContent=out+(outside?' 取点超出当前图窗或数值范围；可重新填写参数。':'');
+  if(form){error.hidden=true;for(const c of config.controls){const field=form.elements.namedItem(c.key);field.value=s[c.key];field.removeAttribute('aria-invalid');}}
   for(const c of config.controls){root.querySelector(`[data-param="${c.key}"]`).value=s[c.key];root.querySelector(`[data-output="${c.key}"]`).textContent=round(s[c.key]);}
   for(const b of root.querySelectorAll('[data-sequence]'))b.setAttribute('aria-pressed',String(b.dataset.sequence===s.sequence));
   for(const b of root.querySelectorAll('[data-conic]'))b.setAttribute('aria-pressed',String(b.dataset.conic===s.conic));
  }
  function set(key,value){const c=config.controls.find(c=>c.key===key);if(c)s[key]=Number(clamp(Math.round(value/c.step)*c.step,c.min,c.max).toFixed(8));}
+ form?.addEventListener('submit',e=>{
+  e.preventDefault();
+  const values={};
+  for(const c of config.controls){
+   const field=form.elements.namedItem(c.key);
+   field.removeAttribute('aria-invalid');
+   const n=parseParameter(field.value),message=parameterError(section.id,c.key,n);
+   if(message){error.textContent=c.label+'：'+message;error.hidden=false;field.setAttribute('aria-invalid','true');field.focus();return;}
+   values[c.key]=n;
+  }
+  Object.assign(s,values);draw();
+ });
  root.addEventListener('input',e=>{if(e.target.matches('[data-param]')){set(e.target.dataset.param,Number(e.target.value));draw();}});
  root.addEventListener('click',e=>{if(e.target.closest('[data-diagram-reset]')){for(const c of config.controls)s[c.key]=c.value;s.sequence=initialSequence;s.conic=initialConic;draw();}if(e.target.dataset.sequence){s.sequence=e.target.dataset.sequence;draw();}if(e.target.dataset.conic){s.conic=e.target.dataset.conic;draw();}});
  function move(e){const rect=svg.getBoundingClientRect(),U=['unitcircle','complex'].includes(kind)?70:50,x=((e.clientX-rect.left)*600/rect.width-300)/U,y=(200-(e.clientY-rect.top)*400/rect.height)/U;

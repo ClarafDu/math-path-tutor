@@ -1,9 +1,9 @@
-import {functionChapters} from './function-experiments.js';
+import {functionChapters} from './function-experiments.js?v=1.3.1';
 import {chaptersA} from './curriculum-a.js';
 import {chaptersB} from './curriculum-b.js';
 import {chaptersC} from './curriculum-c.js';
 import {escapeHTML as esc} from './core.js';
-import {diagramHTML,mountDiagram} from './concept-diagrams.js';
+import {diagramHTML,mountDiagram} from './concept-diagrams.js?v=1.3.1';
 // 将比较符号与有限的公式排版标签区分，避免 a<b 被浏览器误读成 HTML。
 export function safeMath(value){
  if(typeof value==='string')return value.replace(/<(?!\/?(?:sub|sup|strong|em)>|br\s*\/?>)/g,'&lt;');

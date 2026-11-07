@@ -41,7 +41,7 @@ const slider=(key,label,min,max,step,value)=>({key,label,min,max,step,value});
 const probe=slider('p','取点横坐标 x',-4,4,.05,1);
 const angle=slider('p','角度（度）',20,150,1,60);
 const beta=slider('q','β（弧度）',-1.5,1.5,.05,.5);
-const fmt=n=>Number(n.toFixed(3));
+const fmt=n=>Number.isFinite(n)?(n!==0&&(Math.abs(n)<.001||Math.abs(n)>=1e7)?n.toExponential(3):Number(n.toFixed(3))):'超出数值范围';
 const experiment=(title,controls,draw,drag)=>({title,controls,draw,drag,guide:'用滑条调参数；拖动黄色点或用方向键移动取点。坐标窗口只显示局部图像。'});
 const comparison=(title,controls,functions,reading,min=-5.5,max=5.5)=>experiment(title,controls,({path,dot,circle},s)=>{
  const [f,g]=functions(s),x=s.p,y=f(x);

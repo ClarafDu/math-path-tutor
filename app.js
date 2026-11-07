@@ -1,6 +1,6 @@
 import {units,questions} from './content.js';
-import {mapHTML,mountMap,conceptHTML,mountConcept} from './curriculum.js';
-import {functionLabHTML,mountFunctionLab} from './function-lab.js';
+import {mapHTML,mountMap,conceptHTML,mountConcept} from './curriculum.js?v=1.3.1';
+import {functionLabHTML,mountFunctionLab} from './function-lab.js?v=1.3.1';
 import {videos,videoTopics} from './videos.js';
 import {STORAGE_KEY,freshState,validState,localDay,latestAttempts,dueQuestions,reviewQuestions,unitProgress,addAttempt,weeklySessions,escapeHTML as esc,markdownReport} from './core.js';
 
