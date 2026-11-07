@@ -1,6 +1,6 @@
 import {units,questions} from './content.js';
 import {mapHTML,mountMap,conceptHTML,mountConcept} from './curriculum.js';
-import {labHTML,mountLab} from './graph.js';
+import {functionLabHTML,mountFunctionLab} from './function-lab.js';
 import {videos,videoTopics} from './videos.js';
 import {STORAGE_KEY,freshState,validState,localDay,latestAttempts,dueQuestions,reviewQuestions,unitProgress,addAttempt,weeklySessions,escapeHTML as esc,markdownReport} from './core.js';
 
@@ -22,14 +22,15 @@ function stat(label,value,small,cls=''){return `<div class="stat ${cls}"><span>$
 function card(u,compact=false){const p=unitProgress(state,u.id,questions);return `<button class="unit-card ${compact?'compact':''}" data-action="lesson" data-id="${u.id}"><div class="unit-top"><span class="unit-icon ${u.color}">${u.icon}</span><span class="unit-number">UNIT ${u.number}</span><span class="card-arrow">↗</span></div><h3>${u.title}</h3><p>${u.subtitle}</p><div class="unit-meta"><span>${p.seen?`已练 ${p.seen}/${p.total} 题`:'从概念开始'}</span><span>约 ${u.minutes} 分钟</span></div><div class="progress-line"><span style="width:${p.percent}%"></span></div><span class="sr-only">最近无提示答对 ${p.independent}/${p.total}</span></button>`;}
 function render(){
   const conceptView=view.startsWith('concept/');
-  if(!conceptView&&!navs.some(x=>x[0]===view))view='today';
-  const navView=conceptView?'courses':view;
+  const labView=view==='lab'||view.startsWith('lab/');
+  if(!conceptView&&!labView&&!navs.some(x=>x[0]===view))view='today';
+  const navView=conceptView?'courses':labView?'lab':view;
   $('#navigation').innerHTML=navs.map(([id,label])=>`<a href="#${id}" class="nav-item ${navView===id?'active':''}" ${navView===id?'aria-current="page"':''}>${icon(id)}<span>${label}</span>${id==='review'&&reviewQuestions(state,questions).length?`<b>${reviewQuestions(state,questions).length}</b>`:''}</a>`).join('');
   $('#page-title').textContent=navs.find(x=>x[0]===navView)[1];
-  $('#main').innerHTML=conceptView?conceptHTML(view.slice(8)):({today:today,courses:courses,lab:lab,videos:videoClassroom,review:review,records:records}[view])();
+  $('#main').innerHTML=conceptView?conceptHTML(view.slice(8)):labView?lab(view.slice(4)):({today:today,courses:courses,lab:lab,videos:videoClassroom,review:review,records:records}[view])();
   if(conceptView)mountConcept($('#main'),view.slice(8));
   if(view==='courses')mountMap($('#main'));
-  if(view==='lab')mountLab($('#lab-content'));
+  if(labView)mountFunctionLab($('#main'),view.slice(4));
   if(!storageAvailable)$('#main').insertAdjacentHTML('afterbegin','<div class="storage-warning" role="alert">当前浏览器记录暂未可靠保存，请到「学习记录」导出备份。已有不可识别的存档不会在打开时被删除。</div>');
 }
 function today(){
@@ -39,12 +40,12 @@ function today(){
  <section class="dashboard-grid"><div class="hero-card"><div class="hero-copy"><span class="pill"><i></i> 本次推荐 · ${u.number==='01'?'打好前置基础':'跟着掌握情况前进'}</span><h2>${u.title}</h2><p>${u.subtitle}。<br>从一个小目标开始，把“看懂”变成“会做”。</p><button class="primary" data-action="lesson" data-id="${u.id}">开始这次学习 <span>↗</span></button><div class="hero-foot">约 ${u.minutes} 分钟 <span>·</span> 概念卡 + 5 道练习</div></div><div class="math-art" aria-hidden="true"><span class="art-label">从指数，走向对数</span><svg viewBox="0 0 300 230"><defs><pattern id="grid" width="25" height="25" patternUnits="userSpaceOnUse"><path d="M25 0H0V25" fill="none" stroke="#c4dbc6" stroke-width=".6"/></pattern></defs><rect x="0" y="0" width="300" height="230" fill="url(#grid)"/><path d="M20 182H285M72 215V16" stroke="#6b8a73" stroke-width="1.2"/><path d="M84 214C91 170 107 137 132 111S197 73 278 56" fill="none" stroke="#27764c" stroke-width="3.2"/><circle cx="105" cy="147" r="5" fill="#27764c"/><path d="M105 147V182" stroke="#79a785" stroke-dasharray="4 4"/><text x="115" y="133" fill="#2d714b" font-size="13" font-family="Georgia">y = logₐ x</text><text x="111" y="202" fill="#6b8a73" font-size="11">a &gt; 1</text><text x="285" y="174" fill="#6b8a73" font-size="12">x</text><text x="81" y="20" fill="#6b8a73" font-size="12">y</text></svg><div class="formula-tag">a<sup>x</sup> = b <span>⇄</span> log<sub>a</sub>b = x</div></div></div>
  <aside class="weekly-card"><div class="section-kicker">小步学习，长期积累</div><h3>每周两次就好</h3><p>给自己留一点思考的时间。</p><div class="session-row"><span class="session-dot ${sessions>=1?'done':''}">${sessions>=1?'✓':'01'}</span><div><strong>理解与尝试</strong><small>读懂概念，找到卡住的一步</small></div></div><div class="session-connector"></div><div class="session-row"><span class="session-dot ${sessions>=2?'done':''}">${sessions>=2?'✓':'02'}</span><div><strong>独立完成与复测</strong><small>换一道题，验证是否真的会了</small></div></div><div class="weekly-footer">本周已在 <strong>${sessions}</strong> 天完成学习 <span>${sessions>=2?'本周目标已达成 ✓':'目标 2 天'}</span></div></aside></section>
  <section class="stats-row" aria-label="学习概况">${stat('最近无提示答对',`${ind}<em> / ${questions.length}</em>`,'按每题最近一次作答统计')}${stat('到期复习',due.length,'复习安排嵌入下次学习','stat-review')}${stat('练习过的天数',practicedDays,'每一次认真思考，都算数')}</section>
- <section class="learning-tools"><a href="#lab" class="tool-card"><span class="tool-symbol">↗</span><div><span class="eyebrow">MATH IN MOTION</span><h3>拖一拖，公式变成图像。</h3><p>改变底数、平移曲线、探索反函数。</p></div><span>→</span></a><a href="#videos" class="tool-card"><span class="tool-symbol yellow-symbol">▷</span><div><span class="eyebrow">WATCH WITH A QUESTION</span><h3>带着一个问题，看一节课。</h3><p>按知识点查找免费公开课，随时回看。</p></div><span>→</span></a></section>
+ <section class="learning-tools"><a href="#lab" class="tool-card"><span class="tool-symbol">↗</span><div><span class="eyebrow">MATH IN MOTION</span><h3>拖一拖，公式变成图像。</h3><p>从函数与映射到极限与导数，逐节动手和自测。</p></div><span>→</span></a><a href="#videos" class="tool-card"><span class="tool-symbol yellow-symbol">▷</span><div><span class="eyebrow">WATCH WITH A QUESTION</span><h3>带着一个问题，看一节课。</h3><p>按知识点查找免费公开课，随时回看。</p></div><span>→</span></a></section>
  <div class="section-heading"><div><span class="eyebrow">BUILD YOUR FOUNDATION</span><h2>从这里，搭起知识的桥</h2></div><a href="#courses" class="text-link">全部 19 章 · 131 节 <span>→</span></a></div><section class="unit-grid home-units">${units.slice(0,3).map(u=>card(u,true)).join('')}</section>
  <section class="bottom-note"><span class="note-spark">✳</span><div><strong>会解释，才更接近会运用。</strong><p>每做完一道题，问自己一句：这一步为什么成立？</p></div><button class="text-button" data-action="note">记下一个疑问 ↗</button></section>`;
 }
 function courses(){return mapHTML()+`<details class="foundation-practice"><summary>对数前置基础 · 继续原有 6 单元专项练习</summary><p>这组练习保留已有作答与复习记录，可与完整目录搭配使用。</p><section class="unit-grid">${units.map(u=>card(u)).join('')}</section><p class="fineprint">进度条表示原有练习题最近一次无提示答对的比例，不代表全章掌握率。</p></details>`;}
-function lab(){return title('MATH IN MOTION','让数学，动起来。','先预测，再拖动，最后用自己的话解释。图像与数值实时对应。')+'<div id="lab-content">'+labHTML()+'</div>';}
+function lab(id){return title('MATH IN MOTION','函数数形实验','34 节图形任务 · 68 道随节测试。先预测，再拖动，最后独立解题。')+functionLabHTML(id);}
 function videoClassroom(){const selected=videos.filter(v=>videoTopic==='all'||v.unit===videoTopic);return title('FREE LEARNING RESOURCES','带着问题，去看一节好课。','按正在学的知识点选择公开课程。看一小段，停下来解释，再回到本站练习。')+`<section class="video-guide"><span class="video-guide-icon">▷</span><div><h2>看懂以后，关掉视频再试一次。</h2><p>先读卡片上的问题，观看时找依据，最后独立回答。视频标题沿用原课程，课程顺序可能与沪教版不同。</p></div><a class="secondary" href="https://basic.smartedu.cn/" target="_blank" rel="noopener noreferrer">国家平台免费课程 ↗</a></section><div class="video-filters" role="group" aria-label="按知识点筛选视频">${videoTopics.map(([id,name])=>`<button data-action="video-filter" data-id="${id}" class="${id===videoTopic?'active':''}" aria-pressed="${id===videoTopic}">${name}</button>`).join('')}</div><div class="video-count">${selected.length} 个课程入口 <span>原平台播放 · 新标签页打开</span></div><section class="video-grid">${selected.map(v=>`<article class="video-card"><div class="video-card-top"><span class="video-play">▷</span><span>${v.duration}</span><span class="tag">${v.level}</span></div><p class="video-source">${v.source}</p><h3>${v.title}</h3><p class="video-goal">${v.goal}</p><div class="watch-question"><strong>带着这个问题看</strong><p>${v.question}</p></div><div class="video-actions"><a href="${v.url}" class="primary" target="_blank" rel="noopener noreferrer">观看视频 ↗</a><button class="text-button" data-action="lesson" data-id="${v.unit}">回本站练习 →</button></div></article>`).join('')}</section><p class="fineprint">链接至公开课程页面，本站不收费、不下载或转载视频。外站可能要求登录或调整分集、播放规则；如定位有变化，可在原站按卡片标题查找。课程入口整理于 2026-11-01。</p>`;}
 function review(){
  const qs=reviewQuestions(state,questions),due=dueQuestions(state,questions),latest=latestAttempts(state);
