@@ -1,3 +1,4 @@
+import {powerExponent,realPower} from './power-domain.js';
 import {parseParameter,parameterError} from './diagram-parameters.js';
 import {escapeHTML as esc} from './core.js';
 const round=n=>Number.isFinite(n)?String(n!==0&&(Math.abs(n)<.001||Math.abs(n)>=1e7)?n.toExponential(3):Number(n.toFixed(3))):'未定义';
@@ -12,7 +13,7 @@ export const diagramKinds={
  inequality:{title:'把绝对值看成距离',controls:[control('p','允许距离 r',.2,3,.1,2),control('q','待判断的 x',-4,4,.1,0)],guide:'拖动黄色点 x，比较它到 1 的距离与 r。'},
  quadratic:{title:'二次函数与零点',controls:[control('p','零点间距参数 r',.2,3,.1,2),control('q','取点 x',-4,4,.1,0)],guide:'拖动黄色点 x，观察 y=x²−r² 的正负；调 r 改变两个零点。'},
  function:{title:'函数平移、最值与对称',controls:[control('p','水平平移 h',-2,2,.1,0),control('q','竖直平移 k',-2,2,.1,0),control('u','取点 x',-3,3,.1,1)],guide:'拖动黄色顶点平移抛物线，或拖红色取点观察函数值。'},
- power:{title:'幂函数族',controls:[control('p','幂指数 α（选定整数）',-2,3,1,2),control('q','取点 x（正半轴）',.3,2,.05,1.5)],guide:'拖动黄色取点；切换整数幂，比较图像与变化趋势。'},
+ power:{title:'幂函数族',controls:[control('p','幂指数 α（选定整数）',-2,3,1,2),control('q','取点 x',-5,5,.05,1.5)],guide:'拖动黄色取点；滑条切换整数幂，也可手填 1/3、2/3 等分数。'},
  exponential:{title:'指数增长与衰减',controls:[control('p','底数 a',.25,3,.05,2),control('q','取点 x',-2,2,.05,1)],guide:'拖动黄色取点，改变底数，比较增长与衰减。a=1 时得到常函数。'},
  logarithm:{title:'指数与对数互为反函数',controls:[control('p','底数 a',.25,3,.05,2),control('q','对数真数 x',.2,3,.05,2)],guide:'拖动黄色取点；注意 a=1 时对数不成立，坐标交换对应反函数。'},
  unitcircle:{title:'旋转一条半径，读出三角比',controls:[control('p','角度 θ（度）',-180,360,1,45)],guide:'绕圆拖动黄色点，横坐标对应 cos θ，纵坐标对应 sin θ。'},
@@ -42,7 +43,7 @@ export function mountDiagram(root,section){
  const kind=section.visual,config=section.experiment||diagramKinds[kind],svg=root.querySelector('svg'),read=root.querySelector('.diagram-reading');
  const s=Object.fromEntries(config.controls.map(c=>[c.key,c.value]));const initialSequence=['12.4','12.7','12.8'].includes(section.id)?'geometric':'arithmetic';s.sequence=initialSequence;const initialConic=section.id==='15.2'?'circle':section.id==='15.4'?'hyperbola':section.id==='15.5'?'parabola':'ellipse';s.conic=initialConic;
  const form=root.querySelector('.diagram-parameter-form'),error=form?.querySelector('[role=alert]');
- let drag=null,dragStart=null;
+ let drag=null,dragStart=null,powerText=null;
  function draw(){
   if(kind==='counting'){s.q=Math.min(s.p,s.q);root.querySelector('[data-param="q"]').max=s.p;}
   if(kind==='conic'){const range=root.querySelector('[data-param="u"]'),hyper=s.conic==='hyperbola';range.min=hyper?-1.1:-3.14;range.max=hyper?1.1:3.14;if(hyper)s.u=clamp(s.u,-1.1,1.1);}
@@ -70,9 +71,9 @@ export function mountDiagram(root,section){
   } else if(kind==='function'){
    g=path(x=>(x-p)**2+q)+line(p,-3.5,p,3.5,'red',true)+dot(p,q,'vertex')+dot(u,(u-p)**2+q,'probe','red');out=`y=(x−${round(p)})²+${round(q)}。顶点 (${round(p)},${round(q)})，全域最小值 ${round(q)}。f(${round(u)})=${round((u-p)**2+q)}。限制定义域后须重新比较边界。`;
   } else if(kind==='power'){
-   const f=x=>(p<=0&&x===0)||(form&&!Number.isInteger(p)&&x<0)?NaN:x**p,y=f(q);
-   g=path(f)+(Number.isNaN(y)?'':dot(q,y))+(p===0?circle(0,1,.08,'red'):'');
-   out=`y=x^${p}，f(${round(q)})${Number.isNaN(y)?'在此模型中无定义':Number.isFinite(y)?'≈'+round(y):'超出数值范围'}。${Number.isInteger(p)?'负整数幂和零次幂排除 x=0。':p>0?'非整数幂在此实验只画 x≥0 的实数分支。':'负的非整数幂在此实验只画 x>0 的实数分支。'}`;
+   const domain=powerExponent(powerText??String(p)),f=x=>realPower(x,p,domain),y=f(q);
+   g=(domain?.negativeBase?path(f,-5.5,0):'')+path(f,0,5.5)+(Number.isNaN(y)?'':dot(q,y))+(p===0?`<circle cx="${X(0)}" cy="${Y(1)}" r="5" class="d-red d-open"/>`:'');
+   out=`y=x^(${powerText??p})，f(${round(q)})${Number.isNaN(y)?'无实数值':Number.isFinite(y)?'≈'+round(y):'超出数值范围'}。${domain?.negativeBase?'指数约成最简分数后分母为奇数，负半轴也有实数图像。':'指数约成最简分数后分母为偶数，负半轴没有实数图像。'}${p<=0?' x=0 不在定义域内。':''}`;
   } else if(kind==='exponential'){
    g=path(x=>p**x)+dot(q,p**q);out=`y=${round(p)}^x，f(${round(q)})≈${round(p**q)}。${p===1?'底数为 1 得到常函数，不属于通常定义的指数函数。':p>1?'底数大于 1，严格递增。':'底数在 (0,1) 内，严格递减。'}所有图像过 (0,1)。`;
   } else if(kind==='logarithm'){
@@ -125,12 +126,12 @@ export function mountDiagram(root,section){
   }
   svg.innerHTML=`<defs><clipPath id="concept-plot"><rect x="20" y="20" width="560" height="360"/></clipPath></defs><g clip-path="url(#concept-plot)">${axes}${g}</g>`;
   read.textContent=out+(outside?' 取点超出当前图窗或数值范围；可重新填写参数。':'');
-  if(form){error.hidden=true;for(const c of config.controls){const field=form.elements.namedItem(c.key);field.value=s[c.key];field.removeAttribute('aria-invalid');}}
+  if(form){error.hidden=true;for(const c of config.controls){const field=form.elements.namedItem(c.key);field.value=kind==='power'&&c.key==='p'&&powerText!==null?powerText:s[c.key];field.removeAttribute('aria-invalid');}}
   for(const c of config.controls){root.querySelector(`[data-param="${c.key}"]`).value=s[c.key];root.querySelector(`[data-output="${c.key}"]`).textContent=round(s[c.key]);}
   for(const b of root.querySelectorAll('[data-sequence]'))b.setAttribute('aria-pressed',String(b.dataset.sequence===s.sequence));
   for(const b of root.querySelectorAll('[data-conic]'))b.setAttribute('aria-pressed',String(b.dataset.conic===s.conic));
  }
- function set(key,value){const c=config.controls.find(c=>c.key===key);if(c)s[key]=Number(clamp(Math.round(value/c.step)*c.step,c.min,c.max).toFixed(8));}
+ function set(key,value){const c=config.controls.find(c=>c.key===key);if(c){s[key]=Number(clamp(Math.round(value/c.step)*c.step,c.min,c.max).toFixed(8));if(kind==='power'&&key==='p')powerText=null;}}
  form?.addEventListener('submit',e=>{
   e.preventDefault();
   const values={};
@@ -138,13 +139,14 @@ export function mountDiagram(root,section){
    const field=form.elements.namedItem(c.key);
    field.removeAttribute('aria-invalid');
    const n=parseParameter(field.value),message=parameterError(section.id,c.key,n);
-   if(message){error.textContent=c.label+'：'+message;error.hidden=false;field.setAttribute('aria-invalid','true');field.focus();return;}
+   if(message||(kind==='power'&&c.key==='p'&&!powerExponent(field.value))){error.textContent=c.label+'：'+(message||'请输入较短的整数、小数或分数。');error.hidden=false;field.setAttribute('aria-invalid','true');field.focus();return;}
    values[c.key]=n;
   }
+  if(kind==='power')powerText=form.elements.namedItem('p').value.trim();
   Object.assign(s,values);draw();
  });
  root.addEventListener('input',e=>{if(e.target.matches('[data-param]')){set(e.target.dataset.param,Number(e.target.value));draw();}});
- root.addEventListener('click',e=>{if(e.target.closest('[data-diagram-reset]')){for(const c of config.controls)s[c.key]=c.value;s.sequence=initialSequence;s.conic=initialConic;draw();}if(e.target.dataset.sequence){s.sequence=e.target.dataset.sequence;draw();}if(e.target.dataset.conic){s.conic=e.target.dataset.conic;draw();}});
+ root.addEventListener('click',e=>{if(e.target.closest('[data-diagram-reset]')){powerText=null;for(const c of config.controls)s[c.key]=c.value;s.sequence=initialSequence;s.conic=initialConic;draw();}if(e.target.dataset.sequence){s.sequence=e.target.dataset.sequence;draw();}if(e.target.dataset.conic){s.conic=e.target.dataset.conic;draw();}});
  function move(e){const rect=svg.getBoundingClientRect(),U=['unitcircle','complex'].includes(kind)?70:50,x=((e.clientX-rect.left)*600/rect.width-300)/U,y=(200-(e.clientY-rect.top)*400/rect.height)/U;
   if(section.experiment)set('p',config.drag?config.drag(x,y):x);
   else if(kind==='unitcircle')set('p',Math.atan2(y,x)*180/Math.PI);

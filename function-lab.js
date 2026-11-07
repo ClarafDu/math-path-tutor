@@ -1,8 +1,8 @@
 import {chapters,findConcept} from './curriculum.js';
-import {diagramHTML,mountDiagram} from './concept-diagrams.js?v=1.3.1';
+import {diagramHTML,mountDiagram} from './concept-diagrams.js?v=1.3.2';
 import {labHTML,mountLab} from './graph.js';
 import {escapeHTML as esc} from './core.js';
-import {functionChapters,exercises,experiments} from './function-experiments.js?v=1.3.1';
+import {functionChapters,exercises,experiments} from './function-experiments.js?v=1.3.2';
 
 export const labChapters=chapters.filter(c=>functionChapters.includes(c.number));
 export const labSections=labChapters.flatMap(c=>c.sections);
