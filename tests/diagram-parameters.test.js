@@ -8,9 +8,9 @@ test('参数支持分数与小数，拒绝空值、除零和任意表达式',()=
  assert.equal(parseParameter('0.1234'),.1234);
  for(const s of ['','1/0','1/1e999','2+3','Infinity'])assert.ok(Number.isNaN(parseParameter(s)),s);
 });
-test('仅第四章提供填写入口，参数校验按函数定义区分',()=>{
+test('各章提供填写入口，第四章按函数定义校验',()=>{
  for(let i=1;i<=8;i++)assert.match(diagramHTML(labSection('4.'+i)),/应用参数/);
- assert.doesNotMatch(diagramHTML(labSection('3.1')),/应用参数/);
+ assert.match(diagramHTML(labSection('3.1')),/应用参数/);
  assert.equal(parameterError('4.1','p',.5),'');
  assert.equal(parameterError('4.7','p',-4),'');
  assert.ok(parameterError('4.7','q',1));

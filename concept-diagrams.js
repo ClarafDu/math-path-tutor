@@ -34,7 +34,7 @@ export const diagramKinds={
  derivative:{title:'割线逼近切线',controls:[control('p','切点横坐标 x₀',-1.5,1.5,.05,1),control('q','增量 h（非零）',.02,1,.02,.5)],guide:'拖动黄色点缩小 h，观察割线斜率趋近切线斜率。此图演示 f(x)=x²。'},
  limit:{title:'趋近一点，不等于代入该点',controls:[control('p','到 1 的距离 δ',.02,.8,.02,.5)],guide:'拖动黄色点趋近空心点，左右函数值都趋近 2，但原式在 x=1 无定义。'}
 };
-const editable=section=>/^4\.[1-8]$/.test(section.id);
+const editable=section=>/^\d+\.\d+$/.test(section.id);
 function parameterForm(config){
  return `<form class="diagram-parameter-form"><p>直接填数（支持 1/2 等分数），再点「应用参数」。滑条用于快速调整。</p>${config.controls.map(c=>`<label>${c.label.replace('（选定整数）','').replace('（正半轴）','')}<input type="text" name="${c.key}" inputmode="text" autocomplete="off" spellcheck="false" value="${c.value}"></label>`).join('')}<button class="primary" type="submit">应用参数</button><p class="diagram-parameter-error" role="alert" hidden></p></form>`;
 }
@@ -138,10 +138,16 @@ export function mountDiagram(root,section){
   for(const c of config.controls){
    const field=form.elements.namedItem(c.key);
    field.removeAttribute('aria-invalid');
-   const n=parseParameter(field.value),message=parameterError(section.id,c.key,n);
+   const n=parseParameter(field.value),slider=root.querySelector(`[data-param="${c.key}"]`);
+   const max=kind==='counting'&&c.key==='q'?c.max:Number(slider.max);
+   const bounds=!section.id.startsWith('4.')&&(n<Number(slider.min)||n>max)?`请输入 ${slider.min} 到 ${max} 之间的数。`:'';
+   const discrete=['counting','algorithm'].includes(kind)||(kind==='probability'&&c.key==='p')||(kind==='sequence'&&c.key==='u');
+   const whole=discrete&&!Number.isInteger(n)?'请输入整数。':'';
+   const message=parameterError(section.id,c.key,n)||bounds||whole;
    if(message||(kind==='power'&&c.key==='p'&&!powerExponent(field.value))){error.textContent=c.label+'：'+(message||'请输入较短的整数、小数或分数。');error.hidden=false;field.setAttribute('aria-invalid','true');field.focus();return;}
    values[c.key]=n;
   }
+  if(kind==='counting'&&values.q>values.p){error.textContent='选取个数不能大于对象总数。';error.hidden=false;form.elements.namedItem('q').setAttribute('aria-invalid','true');form.elements.namedItem('q').focus();return;}
   if(kind==='power')powerText=form.elements.namedItem('p').value.trim();
   Object.assign(s,values);draw();
  });
